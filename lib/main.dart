@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 
 import 'playlist_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
   runApp(const TVByJozeeApp());
 }
 
@@ -675,44 +679,91 @@ class PlayerPage extends StatefulWidget {
 }
 
 class _PlayerPageState extends State<PlayerPage> {
-  late VideoPlayerController controller;
-  bool initialized = false;
+  late final Player player;
+  late final VideoController videoController;
+  StreamSubscription<String>? errorSubscription;
+  StreamSubscription<bool>? playingSubscription;
+  StreamSubscription<bool>? bufferingSubscription;
+  Timer? connectionTimeout;
+  bool hasStarted = false;
+  bool isBuffering = false;
+  bool isPlaying = false;
   String? playerError;
+  int playbackAttempt = 0;
 
   @override
   void initState() {
     super.initState();
+    player = Player();
+    videoController = VideoController(player);
+    errorSubscription = player.stream.error.listen(_showPlaybackError);
+    playingSubscription = player.stream.playing.listen(_handlePlayingChanged);
+    bufferingSubscription = player.stream.buffering.listen((buffering) {
+      if (!mounted) return;
+      setState(() => isBuffering = buffering);
+    });
     initializePlayer();
   }
 
   Future<void> initializePlayer() async {
-    controller = VideoPlayerController.networkUrl(
-      Uri.parse(widget.channel.streamUrl),
-    );
-
+    final attempt = ++playbackAttempt;
+    connectionTimeout?.cancel();
+    connectionTimeout = Timer(const Duration(seconds: 30), () {
+      if (attempt == playbackAttempt) {
+        _showPlaybackError('timeout');
+      }
+    });
     try {
-      await controller.initialize();
+      await player.stop();
+      await player.open(Media(widget.channel.streamUrl));
+      await videoController.waitUntilFirstFrameRendered;
+      if (!mounted || attempt != playbackAttempt) return;
 
-      if (!mounted) return;
-
-      setState(() {
-        initialized = true;
-      });
-
-      await controller.play();
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        playerError = 'Imeshindikana kucheza stream hii.';
-      });
+      connectionTimeout?.cancel();
+      setState(() => hasStarted = true);
+    } on Exception {
+      if (attempt == playbackAttempt) _showPlaybackError('playback');
     }
+  }
+
+  void _showPlaybackError(String reason) {
+    connectionTimeout?.cancel();
+    if (!mounted || playerError != null) return;
+
+    setState(() {
+      playerError = reason == 'timeout'
+          ? 'Stream haijaanza baada ya sekunde 30. Angalia intaneti au jaribu '
+                'tena baadaye.'
+          : 'Imeshindikana kucheza stream hii. Inaweza kuwa imezimwa au '
+                'haitumii format inayoungwa mkono. Jaribu tena baadaye.';
+    });
+  }
+
+  void _handlePlayingChanged(bool playing) {
+    if (!mounted) return;
+
+    setState(() => isPlaying = playing);
   }
 
   @override
   void dispose() {
-    controller.dispose();
+    playbackAttempt++;
+    connectionTimeout?.cancel();
+    unawaited(errorSubscription?.cancel());
+    unawaited(playingSubscription?.cancel());
+    unawaited(bufferingSubscription?.cancel());
+    unawaited(player.dispose());
     super.dispose();
+  }
+
+  void _retryPlayback() {
+    setState(() {
+      hasStarted = false;
+      isBuffering = false;
+      isPlaying = false;
+      playerError = null;
+    });
+    initializePlayer();
   }
 
   @override
@@ -724,55 +775,50 @@ class _PlayerPageState extends State<PlayerPage> {
         child: playerError != null
             ? Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text(
-                  playerError!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      playerError!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: _retryPlayback,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Jaribu tena'),
+                    ),
+                  ],
                 ),
               )
-            : initialized
-            ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+            : Stack(
+                alignment: Alignment.center,
                 children: [
-                  AspectRatio(
-                    aspectRatio: controller.value.aspectRatio,
-                    child: VideoPlayer(controller),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    widget.channel.name,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                  Positioned.fill(
+                    child: Video(
+                      controller: videoController,
+                      controls: (_) => const SizedBox.shrink(),
                     ),
                   ),
-                  const SizedBox(height: 15),
-                  IconButton(
-                    iconSize: 45,
-                    color: gold,
-                    onPressed: () {
-                      setState(() {
-                        if (controller.value.isPlaying) {
-                          controller.pause();
-                        } else {
-                          controller.play();
-                        }
-                      });
-                    },
-                    icon: Icon(
-                      controller.value.isPlaying
-                          ? Icons.pause_circle
-                          : Icons.play_circle,
+                  if (!hasStarted || isBuffering)
+                    const ColoredBox(
+                      color: Colors.black54,
+                      child: Center(
+                        child: CircularProgressIndicator(color: accent),
+                      ),
+                    ),
+                  Positioned(
+                    bottom: 24,
+                    child: IconButton(
+                      iconSize: 56,
+                      color: gold,
+                      onPressed: player.playOrPause,
+                      icon: Icon(
+                        isPlaying ? Icons.pause_circle : Icons.play_circle,
+                      ),
                     ),
                   ),
-                ],
-              )
-            : const Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(color: accent),
-                  SizedBox(height: 15),
-                  Text('Connecting to stream...'),
                 ],
               ),
       ),
