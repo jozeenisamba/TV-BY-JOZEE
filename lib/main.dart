@@ -1,6 +1,6 @@
-
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+
 import 'playlist_service.dart';
 
 void main() {
@@ -49,6 +49,7 @@ class _TVHomePageState extends State<TVHomePage> {
   int selectedTab = 0;
   String selectedCategory = 'All';
   String searchText = '';
+  String countrySearchText = '';
   String? selectedCountry;
 
   List<TVChannel> channels = [];
@@ -57,6 +58,7 @@ class _TVHomePageState extends State<TVHomePage> {
 
   final Set<String> favorites = {};
   final TextEditingController searchController = TextEditingController();
+  final TextEditingController countrySearchController = TextEditingController();
 
   @override
   void initState() {
@@ -96,25 +98,15 @@ class _TVHomePageState extends State<TVHomePage> {
     return ['All', ...groups];
   }
 
-  List<String> get countries {
-    final result = channels
-        .map((channel) => channel.country)
-        .where((country) => country.isNotEmpty)
-        .toSet()
-        .toList();
-
-    result.sort();
-    return result;
-  }
-
   List<TVChannel> get filteredChannels {
     return channels.where((channel) {
-      final categoryMatch = selectedCategory == 'All' ||
-          channel.category == selectedCategory;
+      final categoryMatch =
+          selectedCategory == 'All' || channel.category == selectedCategory;
 
       final query = searchText.toLowerCase();
 
-      final searchMatch = channel.name.toLowerCase().contains(query) ||
+      final searchMatch =
+          channel.name.toLowerCase().contains(query) ||
           channel.country.toLowerCase().contains(query) ||
           channel.category.toLowerCase().contains(query);
 
@@ -134,6 +126,7 @@ class _TVHomePageState extends State<TVHomePage> {
   @override
   void dispose() {
     searchController.dispose();
+    countrySearchController.dispose();
     super.dispose();
   }
 
@@ -145,11 +138,8 @@ class _TVHomePageState extends State<TVHomePage> {
       return;
     }
 
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => PlayerPage(channel: channel),
-      ),
-    );
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => PlayerPage(channel: channel)));
   }
 
   void changeTab(int index) {
@@ -171,14 +161,19 @@ class _TVHomePageState extends State<TVHomePage> {
         backgroundColor: panel,
         title: const Row(
           children: [
-            Icon(Icons.live_tv, color: accent, size: 28),
+            ClipRRect(
+              borderRadius: BorderRadius.all(Radius.circular(7)),
+              child: Image(
+                image: AssetImage('assets/images/jozee_logo.png'),
+                width: 38,
+                height: 38,
+                fit: BoxFit.cover,
+              ),
+            ),
             SizedBox(width: 10),
             Text(
               'TV BY JOZEE',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
             ),
           ],
         ),
@@ -203,8 +198,7 @@ class _TVHomePageState extends State<TVHomePage> {
           Expanded(child: _mainContent()),
         ],
       ),
-      bottomNavigationBar:
-          wide ? null : _bottomNavigation(),
+      bottomNavigationBar: wide ? null : _bottomNavigation(),
     );
   }
 
@@ -215,20 +209,25 @@ class _TVHomePageState extends State<TVHomePage> {
       child: Column(
         children: [
           const SizedBox(height: 25),
-          const Icon(Icons.live_tv, color: accent, size: 48),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Image.asset(
+              'assets/images/jozee_logo.png',
+              width: 92,
+              height: 92,
+              fit: BoxFit.cover,
+            ),
+          ),
           const SizedBox(height: 10),
           const Text(
             'TV BY JOZEE',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
           ),
           const SizedBox(height: 30),
           _navItem(0, Icons.home, 'Home'),
           _navItem(1, Icons.live_tv, 'Live TV'),
           _navItem(2, Icons.favorite, 'Favorites'),
-          _navItem(3, Icons.public, 'Countries'),
+          _navItem(3, Icons.public, 'By Region'),
           const Spacer(),
           Padding(
             padding: const EdgeInsets.all(15),
@@ -248,10 +247,7 @@ class _TVHomePageState extends State<TVHomePage> {
     return ListTile(
       selected: active,
       selectedTileColor: accent.withValues(alpha: 0.15),
-      leading: Icon(
-        icon,
-        color: active ? accent : Colors.white70,
-      ),
+      leading: Icon(icon, color: active ? accent : Colors.white70),
       title: Text(
         label,
         style: TextStyle(
@@ -270,22 +266,10 @@ class _TVHomePageState extends State<TVHomePage> {
       indicatorColor: accent.withValues(alpha: 0.2),
       onDestinationSelected: changeTab,
       destinations: const [
-        NavigationDestination(
-          icon: Icon(Icons.home),
-          label: 'Home',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.live_tv),
-          label: 'Live TV',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.favorite),
-          label: 'Favorites',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.public),
-          label: 'Countries',
-        ),
+        NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
+        NavigationDestination(icon: Icon(Icons.live_tv), label: 'Live TV'),
+        NavigationDestination(icon: Icon(Icons.favorite), label: 'Favorites'),
+        NavigationDestination(icon: Icon(Icons.public), label: 'By Region'),
       ],
     );
   }
@@ -368,6 +352,16 @@ class _TVHomePageState extends State<TVHomePage> {
                 '${channels.length} television channels available',
                 style: const TextStyle(color: Colors.white60),
               ),
+              if (selectedCountry != null) ...[
+                const SizedBox(height: 10),
+                Chip(
+                  avatar: const Icon(Icons.flag, size: 18),
+                  label: Text(selectedCountry!),
+                  onDeleted: () {
+                    setState(() => selectedCountry = null);
+                  },
+                ),
+              ],
               const SizedBox(height: 18),
               TextField(
                 controller: searchController,
@@ -383,8 +377,7 @@ class _TVHomePageState extends State<TVHomePage> {
                     borderRadius: BorderRadius.circular(13),
                     borderSide: BorderSide.none,
                   ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(vertical: 14),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
                 ),
               ),
               const SizedBox(height: 16),
@@ -432,10 +425,10 @@ class _TVHomePageState extends State<TVHomePage> {
         final count = width >= 1100
             ? 5
             : width >= 750
-                ? 4
-                : width >= 500
-                    ? 3
-                    : 2;
+            ? 4
+            : width >= 500
+            ? 3
+            : 2;
 
         return GridView.builder(
           padding: const EdgeInsets.all(16),
@@ -471,33 +464,21 @@ class _TVHomePageState extends State<TVHomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Expanded(
-              child: Center(
-                child: Icon(
-                  channel.icon,
-                  size: 48,
-                  color: accent,
-                ),
-              ),
+              child: Center(child: Icon(channel.icon, size: 48, color: accent)),
             ),
             Text(
               channel.name,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
             const SizedBox(height: 5),
             Text(
               channel.country,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 11,
-              ),
+              style: const TextStyle(color: Colors.white54, fontSize: 11),
             ),
             const SizedBox(height: 5),
             Row(
@@ -505,10 +486,7 @@ class _TVHomePageState extends State<TVHomePage> {
               children: [
                 const Icon(Icons.circle, color: Colors.red, size: 8),
                 const SizedBox(width: 5),
-                const Text(
-                  'LIVE',
-                  style: TextStyle(fontSize: 10),
-                ),
+                const Text('LIVE', style: TextStyle(fontSize: 10)),
                 IconButton(
                   visualDensity: VisualDensity.compact,
                   onPressed: () {
@@ -557,45 +535,130 @@ class _TVHomePageState extends State<TVHomePage> {
   }
 
   Widget _countriesPage() {
+    final grouped = <String, Map<String, int>>{};
+    for (final channel in channels) {
+      final continent = channel.continent;
+      final countryCounts = grouped.putIfAbsent(continent, () => {});
+      countryCounts.update(
+        channel.country,
+        (count) => count + 1,
+        ifAbsent: () => 1,
+      );
+    }
+
+    const continentOrder = [
+      'Africa',
+      'Asia',
+      'Europe',
+      'North America',
+      'South America',
+      'Oceania',
+      'Other / Unknown',
+    ];
+    final continents = grouped.keys.toList()
+      ..sort((a, b) {
+        final aIndex = continentOrder.indexOf(a);
+        final bIndex = continentOrder.indexOf(b);
+        return (aIndex == -1 ? continentOrder.length : aIndex).compareTo(
+          bIndex == -1 ? continentOrder.length : bIndex,
+        );
+      });
+    final query = countrySearchText.trim().toLowerCase();
+    final visibleContinents = continents.where((continent) {
+      return continent.toLowerCase().contains(query) ||
+          grouped[continent]!.keys.any(
+            (country) => country.toLowerCase().contains(query),
+          );
+    }).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.all(20),
-          child: Text(
-            'COUNTRIES',
-            style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'CONTINENTS & COUNTRIES',
+                style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: countrySearchController,
+                onChanged: (value) {
+                  setState(() => countrySearchText = value);
+                },
+                decoration: InputDecoration(
+                  hintText: 'Search continent or country...',
+                  prefixIcon: const Icon(Icons.search),
+                  filled: true,
+                  fillColor: panel,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(13),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ],
           ),
         ),
         Expanded(
-          child: ListView.builder(
-            itemCount: countries.length,
-            itemBuilder: (context, index) {
-              final country = countries[index];
-              final count = channels
-                  .where((channel) => channel.country == country)
-                  .length;
+          child: visibleContinents.isEmpty
+              ? const Center(child: Text('Hakuna bara au nchi iliyopatikana.'))
+              : ListView(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  children: visibleContinents.map((continent) {
+                    final countryCounts = grouped[continent]!;
+                    final countries = countryCounts.keys.where((country) {
+                      return query.isEmpty ||
+                          continent.toLowerCase().contains(query) ||
+                          country.toLowerCase().contains(query);
+                    }).toList()..sort();
+                    final continentCount = countryCounts.values.fold<int>(
+                      0,
+                      (total, count) => total + count,
+                    );
 
-              return Card(
-                color: panel,
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 5,
+                    return Card(
+                      color: panel,
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 5,
+                      ),
+                      child: ExpansionTile(
+                        leading: const Icon(Icons.public, color: accent),
+                        title: Text(continent),
+                        subtitle: Text(
+                          '${countries.length} countries · '
+                          '$continentCount channels',
+                        ),
+                        children: countries.map((country) {
+                          return ListTile(
+                            contentPadding: const EdgeInsets.fromLTRB(
+                              68,
+                              0,
+                              20,
+                              0,
+                            ),
+                            leading: const Icon(Icons.flag_outlined),
+                            title: Text(country),
+                            trailing: Text(
+                              '${countryCounts[country]} channels',
+                            ),
+                            onTap: () {
+                              setState(() {
+                                selectedCountry = country;
+                                selectedTab = 1;
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    );
+                  }).toList(),
                 ),
-                child: ListTile(
-                  leading: const Icon(Icons.public, color: accent),
-                  title: Text(country),
-                  trailing: Text('$count channels'),
-                  onTap: () {
-                    setState(() {
-                      selectedCountry = country;
-                      selectedTab = 1;
-                    });
-                  },
-                ),
-              );
-            },
-          ),
         ),
       ],
     );
@@ -605,10 +668,7 @@ class _TVHomePageState extends State<TVHomePage> {
 class PlayerPage extends StatefulWidget {
   final TVChannel channel;
 
-  const PlayerPage({
-    super.key,
-    required this.channel,
-  });
+  const PlayerPage({super.key, required this.channel});
 
   @override
   State<PlayerPage> createState() => _PlayerPageState();
@@ -659,10 +719,7 @@ class _PlayerPageState extends State<PlayerPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: panel,
-        title: Text(widget.channel.name),
-      ),
+      appBar: AppBar(backgroundColor: panel, title: Text(widget.channel.name)),
       body: Center(
         child: playerError != null
             ? Padding(
@@ -674,50 +731,50 @@ class _PlayerPageState extends State<PlayerPage> {
                 ),
               )
             : initialized
-                ? Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      AspectRatio(
-                        aspectRatio: controller.value.aspectRatio,
-                        child: VideoPlayer(controller),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        widget.channel.name,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      IconButton(
-                        iconSize: 45,
-                        color: gold,
-                        onPressed: () {
-                          setState(() {
-                            if (controller.value.isPlaying) {
-                              controller.pause();
-                            } else {
-                              controller.play();
-                            }
-                          });
-                        },
-                        icon: Icon(
-                          controller.value.isPlaying
-                              ? Icons.pause_circle
-                              : Icons.play_circle,
-                        ),
-                      ),
-                    ],
-                  )
-                : const Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(color: accent),
-                      SizedBox(height: 15),
-                      Text('Connecting to stream...'),
-                    ],
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AspectRatio(
+                    aspectRatio: controller.value.aspectRatio,
+                    child: VideoPlayer(controller),
                   ),
+                  const SizedBox(height: 20),
+                  Text(
+                    widget.channel.name,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  IconButton(
+                    iconSize: 45,
+                    color: gold,
+                    onPressed: () {
+                      setState(() {
+                        if (controller.value.isPlaying) {
+                          controller.pause();
+                        } else {
+                          controller.play();
+                        }
+                      });
+                    },
+                    icon: Icon(
+                      controller.value.isPlaying
+                          ? Icons.pause_circle
+                          : Icons.play_circle,
+                    ),
+                  ),
+                ],
+              )
+            : const Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: accent),
+                  SizedBox(height: 15),
+                  Text('Connecting to stream...'),
+                ],
+              ),
       ),
     );
   }
