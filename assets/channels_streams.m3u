@@ -22957,3 +22957,12 @@ https://tvzvezda.bonus-tv.ru/cdn/tvzvezda/playlist.m3u8
 http://tvzvezda.bonus-tv.ru/cdn/zvezdaplus/playlist.m3u8
 #EXTINF:-1,Zwei Music Television
 https://zweiapp.b-cdn.net/1080p/index.m3u8
+
+#EXTINF:-1 tvg-country="TZ" group-title="StarTimes TZ" tvg-name="TBC 1",TBC 1
+http://cloudflare-video.gslb.startimestv.com/live/TBC_1_908_250_320x240_194044/playlist.m3u8
+#EXTINF:-1 tvg-country="TZ" group-title="StarTimes TZ" tvg-name="ST Bongo",ST Bongo
+http://cloudflare-video.gslb.startimestv.com/live/ST_BONGO_401_250_720x576_194044/playlist.m3u8
+#EXTINF:-1 tvg-country="TZ" group-title="StarTimes TZ" tvg-name="ST Swahili",ST Swahili
+http://cloudflare-video.gslb.startimestv.com/live/ST_SWAHILI_400_250_720x576_194044/playlist.m3u8
+#EXTINF:-1 tvg-country="TZ" group-title="StarTimes TZ" tvg-name="ST Swahili Plus",ST Swahili Plus
+http://cloudflare-video.gslb.startimestv.com/live/ST_SWAHILI_PLUS_402_250_720x576_194044/playlist.m3u8
