@@ -1,14 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
+import 'package:video_player/video_player.dart';
 
 import 'playlist_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  MediaKit.ensureInitialized();
   runApp(const TVByJozeeApp());
 }
 
@@ -679,11 +677,7 @@ class PlayerPage extends StatefulWidget {
 }
 
 class _PlayerPageState extends State<PlayerPage> {
-  late final Player player;
-  late final VideoController videoController;
-  StreamSubscription<String>? errorSubscription;
-  StreamSubscription<bool>? playingSubscription;
-  StreamSubscription<bool>? bufferingSubscription;
+  VideoPlayerController? videoController;
   Timer? connectionTimeout;
   bool hasStarted = false;
   bool isBuffering = false;
@@ -694,34 +688,43 @@ class _PlayerPageState extends State<PlayerPage> {
   @override
   void initState() {
     super.initState();
-    player = Player();
-    videoController = VideoController(player);
-    errorSubscription = player.stream.error.listen(_showPlaybackError);
-    playingSubscription = player.stream.playing.listen(_handlePlayingChanged);
-    bufferingSubscription = player.stream.buffering.listen((buffering) {
-      if (!mounted) return;
-      setState(() => isBuffering = buffering);
-    });
     initializePlayer();
   }
 
   Future<void> initializePlayer() async {
     final attempt = ++playbackAttempt;
     connectionTimeout?.cancel();
+    final previousController = videoController;
+    videoController = null;
+    previousController?.removeListener(_handlePlayerUpdate);
+    if (previousController != null) await previousController.dispose();
+    if (!mounted || attempt != playbackAttempt) return;
+
+    final controller = VideoPlayerController.networkUrl(
+      Uri.parse(widget.channel.streamUrl),
+    );
+    videoController = controller;
+    setState(() {
+      hasStarted = false;
+      isBuffering = true;
+      isPlaying = false;
+      playerError = null;
+    });
     connectionTimeout = Timer(const Duration(seconds: 30), () {
       if (attempt == playbackAttempt) {
         _showPlaybackError('timeout');
       }
     });
     try {
-      await player.stop();
-      await player.open(Media(widget.channel.streamUrl));
-      await videoController.waitUntilFirstFrameRendered;
+      await controller.initialize();
       if (!mounted || attempt != playbackAttempt) return;
 
       connectionTimeout?.cancel();
-      setState(() => hasStarted = true);
-    } on Exception {
+      controller.addListener(_handlePlayerUpdate);
+      await controller.play();
+      if (!mounted || attempt != playbackAttempt) return;
+      _handlePlayerUpdate();
+    } catch (_) {
       if (attempt == playbackAttempt) _showPlaybackError('playback');
     }
   }
@@ -739,30 +742,40 @@ class _PlayerPageState extends State<PlayerPage> {
     });
   }
 
-  void _handlePlayingChanged(bool playing) {
+  void _handlePlayerUpdate() {
+    final controller = videoController;
     if (!mounted) return;
 
-    setState(() => isPlaying = playing);
+    if (controller == null) return;
+    final value = controller.value;
+    if (value.hasError) {
+      _showPlaybackError('playback');
+      return;
+    }
+    if (value.isInitialized) connectionTimeout?.cancel();
+    if (hasStarted == value.isInitialized &&
+        isBuffering == value.isBuffering &&
+        isPlaying == value.isPlaying) {
+      return;
+    }
+    setState(() {
+      hasStarted = value.isInitialized;
+      isBuffering = value.isBuffering;
+      isPlaying = value.isPlaying;
+    });
   }
 
   @override
   void dispose() {
     playbackAttempt++;
     connectionTimeout?.cancel();
-    unawaited(errorSubscription?.cancel());
-    unawaited(playingSubscription?.cancel());
-    unawaited(bufferingSubscription?.cancel());
-    unawaited(player.dispose());
+    final controller = videoController;
+    controller?.removeListener(_handlePlayerUpdate);
+    unawaited(controller?.dispose());
     super.dispose();
   }
 
   void _retryPlayback() {
-    setState(() {
-      hasStarted = false;
-      isBuffering = false;
-      isPlaying = false;
-      playerError = null;
-    });
     initializePlayer();
   }
 
@@ -795,12 +808,18 @@ class _PlayerPageState extends State<PlayerPage> {
             : Stack(
                 alignment: Alignment.center,
                 children: [
-                  Positioned.fill(
-                    child: Video(
-                      controller: videoController,
-                      controls: (_) => const SizedBox.shrink(),
+                  if (videoController?.value.isInitialized ?? false)
+                    Positioned.fill(
+                      child: Center(
+                        child: AspectRatio(
+                          aspectRatio:
+                              videoController!.value.aspectRatio > 0
+                                  ? videoController!.value.aspectRatio
+                                  : 16 / 9,
+                          child: VideoPlayer(videoController!),
+                        ),
+                      ),
                     ),
-                  ),
                   if (!hasStarted || isBuffering)
                     const ColoredBox(
                       color: Colors.black54,
@@ -813,7 +832,10 @@ class _PlayerPageState extends State<PlayerPage> {
                     child: IconButton(
                       iconSize: 56,
                       color: gold,
-                      onPressed: player.playOrPause,
+                      onPressed: () =>
+                          videoController?.value.isPlaying == true
+                          ? videoController?.pause()
+                          : videoController?.play(),
                       icon: Icon(
                         isPlaying ? Icons.pause_circle : Icons.play_circle,
                       ),
