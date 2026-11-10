@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
 import 'playlist_service.dart';
@@ -15,6 +16,7 @@ const Color panel = Color(0xFF111827);
 const Color panel2 = Color(0xFF1B2433);
 const Color accent = Color(0xFFE50932);
 const Color gold = Color(0xFFFFC928);
+final Uri moviesWebsite = Uri.parse('https://cinegram.tv/tv-shows');
 
 class TVByJozeeApp extends StatelessWidget {
   const TVByJozeeApp({super.key});
@@ -154,6 +156,18 @@ void dispose() {
     });
   }
 
+  Future<void> _openMoviesWebsite() async {
+    final opened = await launchUrl(
+      moviesWebsite,
+      mode: LaunchMode.inAppWebView,
+    );
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Imeshindikana kufungua Cinegram.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.of(context).size.width >= 850;
@@ -230,6 +244,7 @@ void dispose() {
           _navItem(1, Icons.live_tv, 'Live TV'),
           _navItem(2, Icons.favorite, 'Favorites'),
           _navItem(3, Icons.public, 'By Region'),
+          _navItem(4, Icons.movie, 'Movies'),
           const Spacer(),
           Padding(
             padding: const EdgeInsets.all(15),
@@ -272,11 +287,14 @@ void dispose() {
         NavigationDestination(icon: Icon(Icons.live_tv), label: 'Live TV'),
         NavigationDestination(icon: Icon(Icons.favorite), label: 'Favorites'),
         NavigationDestination(icon: Icon(Icons.public), label: 'By Region'),
+        NavigationDestination(icon: Icon(Icons.movie), label: 'Movies'),
       ],
     );
   }
 
   Widget _mainContent() {
+    if (selectedTab == 4) return _moviesPage();
+
     if (loadingChannels) {
       return const Center(
         child: Column(
@@ -329,6 +347,47 @@ void dispose() {
       default:
         return _homePage();
     }
+  }
+
+  Widget _moviesPage() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Card(
+            color: panel,
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.movie, color: accent, size: 56),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'MOVIES',
+                    style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Fungua Cinegram kutazama filamu. Uchezaji na huduma '
+                    'zinapatikana kupitia tovuti yenyewe.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
+                    onPressed: _openMoviesWebsite,
+                    icon: const Icon(Icons.open_in_new),
+                    label: const Text('Tazama Cinegram ndani ya app'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _homePage() {
