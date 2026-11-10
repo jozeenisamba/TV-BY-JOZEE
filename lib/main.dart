@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 import 'playlist_service.dart';
-
+import 'package:wakelock_plus/wakelock_plus.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const TVByJozeeApp());
@@ -63,10 +63,10 @@ class _TVHomePageState extends State<TVHomePage> {
   final TextEditingController countrySearchController = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    loadPlaylist();
-  }
+void initState() {
+  super.initState();
+  loadPlaylist();
+}
 
   Future<void> loadPlaylist() async {
     try {
@@ -126,11 +126,11 @@ class _TVHomePageState extends State<TVHomePage> {
   }
 
   @override
-  void dispose() {
-    searchController.dispose();
-    countrySearchController.dispose();
-    super.dispose();
-  }
+void dispose() {
+  searchController.dispose();
+  countrySearchController.dispose();
+  super.dispose();
+}
 
   void openChannel(TVChannel channel) {
     if (channel.streamUrl.trim().isEmpty) {
@@ -685,11 +685,14 @@ class _PlayerPageState extends State<PlayerPage> {
   String? playerError;
   int playbackAttempt = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    initializePlayer();
-  }
+ @override
+void initState() {
+  super.initState();
+
+  unawaited(WakelockPlus.enable());
+
+  initializePlayer();
+}
 
   Future<void> initializePlayer() async {
     final attempt = ++playbackAttempt;
@@ -766,14 +769,18 @@ class _PlayerPageState extends State<PlayerPage> {
   }
 
   @override
-  void dispose() {
-    playbackAttempt++;
-    connectionTimeout?.cancel();
-    final controller = videoController;
-    controller?.removeListener(_handlePlayerUpdate);
-    unawaited(controller?.dispose());
-    super.dispose();
-  }
+void dispose() {
+  playbackAttempt++;
+  connectionTimeout?.cancel();
+
+  unawaited(WakelockPlus.disable());
+
+  final controller = videoController;
+  controller?.removeListener(_handlePlayerUpdate);
+  unawaited(controller?.dispose());
+
+  super.dispose();
+}
 
   void _retryPlayback() {
     initializePlayer();
