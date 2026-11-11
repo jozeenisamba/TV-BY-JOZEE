@@ -92,20 +92,102 @@ void initState() {
   }
 
   List<String> get categories {
-    final groups = channels
-        .map((channel) => channel.category)
-        .where((category) => category.isNotEmpty)
-        .toSet()
-        .toList();
+    return const [
+      'All',
+      'Movies',
+      'Action Movie',
+      'Series',
+      'Drama',
+      'War',
+      'Romantic',
+      'Sports',
+      'News',
+      'Music',
+    ];
+  }
 
-    groups.sort();
-    return ['All', ...groups];
+  List<String> get musicCountries {
+    return channels
+        .where((channel) => _matchesCategory(channel, 'Music'))
+        .map((channel) => channel.country)
+        .toSet()
+        .toList()
+      ..sort();
+  }
+
+  bool _matchesCategory(TVChannel channel, String category) {
+    final text = '${channel.category} ${channel.name} ${channel.description}'
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), ' ');
+
+    bool containsAny(List<String> terms) =>
+        terms.any(
+          (term) => RegExp(
+            '\\b${RegExp.escape(term)}\\b',
+          ).hasMatch(text),
+        );
+
+    switch (category) {
+      case 'Movies':
+        return containsAny([
+          'movie',
+          'movies',
+          'film',
+          'films',
+          'cinema',
+          'series',
+          'serial',
+          'serials',
+          'drama',
+          'dramas',
+          'war',
+          'wars',
+          'romance',
+          'romantic',
+          'action',
+          'telenovela',
+          'telenovelas',
+        ]);
+      case 'Action Movie':
+        return containsAny(['action', 'adventure']);
+      case 'Series':
+        return containsAny([
+          'series',
+          'serial',
+          'serials',
+          'tv show',
+          'tv shows',
+          'telenovela',
+          'telenovelas',
+        ]);
+      case 'Drama':
+        return containsAny([
+          'drama',
+          'dramas',
+          'soap opera',
+          'telenovela',
+          'telenovelas',
+        ]);
+      case 'War':
+        return containsAny(['war', 'wars', 'military']);
+      case 'Romantic':
+        return containsAny(['romance', 'romantic', 'love story']);
+      case 'Sports':
+        return containsAny(['sport', 'sports']);
+      case 'News':
+        return containsAny(['news']);
+      case 'Music':
+        return containsAny(['music']);
+      default:
+        return true;
+    }
   }
 
   List<TVChannel> get filteredChannels {
     return channels.where((channel) {
       final categoryMatch =
-          selectedCategory == 'All' || channel.category == selectedCategory;
+          selectedCategory == 'All' ||
+          _matchesCategory(channel, selectedCategory);
 
       final query = searchText.toLowerCase();
 
@@ -342,28 +424,24 @@ void dispose() {
 
 
 
-Widget _moviesPage() {
-  return InAppWebView(
-    initialUrlRequest: URLRequest(
-      url: WebUri('https://cinegram.tv/tv-shows'),
-    ),
-    initialSettings: InAppWebViewSettings(
-      javaScriptEnabled: true,
-      javaScriptCanOpenWindowsAutomatically: true,
-      domStorageEnabled: true,
-      thirdPartyCookiesEnabled: true,
-      mediaPlaybackRequiresUserGesture: true,
-      allowsInlineMediaPlayback: true,
-      supportZoom: false,
-      loadsImagesAutomatically: true,
-      cacheEnabled: false,
-    ),
-  );
-}
-
-
-
-
+  Widget _moviesPage() {
+    return InAppWebView(
+      initialUrlRequest: URLRequest(
+        url: WebUri('https://cinegram.tv/tv-shows'),
+      ),
+      initialSettings: InAppWebViewSettings(
+        javaScriptEnabled: true,
+        javaScriptCanOpenWindowsAutomatically: true,
+        domStorageEnabled: true,
+        thirdPartyCookiesEnabled: true,
+        mediaPlaybackRequiresUserGesture: true,
+        allowsInlineMediaPlayback: true,
+        supportZoom: false,
+        loadsImagesAutomatically: true,
+        cacheEnabled: false,
+      ),
+    );
+  }
 
   Widget _homePage() {
     final list = filteredChannels;
@@ -418,6 +496,18 @@ Widget _moviesPage() {
               ),
               const SizedBox(height: 16),
               _categoryList(),
+              if (selectedCategory == 'Music' && musicCountries.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Text(
+                  'MUSIC BY REGION',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _musicRegionList(),
+              ],
             ],
           ),
         ),
@@ -445,7 +535,36 @@ Widget _moviesPage() {
               selectedColor: accent,
               backgroundColor: panel2,
               onSelected: (_) {
-                setState(() => selectedCategory = category);
+                setState(() {
+                  selectedCategory = category;
+                  selectedCountry = null;
+                });
+              },
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _musicRegionList() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: musicCountries.map((country) {
+          final active = selectedCountry == country;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              avatar: const Icon(Icons.public, size: 16),
+              label: Text(country),
+              selected: active,
+              selectedColor: accent,
+              backgroundColor: panel2,
+              onSelected: (_) {
+                setState(() {
+                  selectedCountry = active ? null : country;
+                });
               },
             ),
           );
