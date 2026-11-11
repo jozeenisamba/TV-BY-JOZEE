@@ -340,6 +340,8 @@ void dispose() {
   }
 
 
+
+
 Widget _moviesPage() {
   return InAppWebView(
     initialUrlRequest: URLRequest(
@@ -347,36 +349,20 @@ Widget _moviesPage() {
     ),
     initialSettings: InAppWebViewSettings(
       javaScriptEnabled: true,
+      javaScriptCanOpenWindowsAutomatically: true,
       domStorageEnabled: true,
-      mediaPlaybackRequiresUserGesture: false,
+      thirdPartyCookiesEnabled: true,
+      mediaPlaybackRequiresUserGesture: true,
       allowsInlineMediaPlayback: true,
-      supportZoom: true,
-      contentBlockers: [
-        // Zuia baadhi ya mitandao inayotumika kusambaza matangazo.
-        ContentBlocker(
-          trigger: ContentBlockerTrigger(
-            urlFilter: r'.*(doubleclick\.net|googlesyndication\.com|googleadservices\.com|popads\.net|popcash\.net).*',
-          ),
-          action: ContentBlockerAction(
-            type: ContentBlockerActionType.BLOCK,
-          ),
-        ),
-
-        // Ficha baadhi ya maeneo ya matangazo kwenye ukurasa.
-        ContentBlocker(
-          trigger: ContentBlockerTrigger(
-            urlFilter: r'.*',
-            ifDomain: ['cinegram.tv', '*.cinegram.tv'],
-          ),
-          action: ContentBlockerAction(
-            type: ContentBlockerActionType.CSS_DISPLAY_NONE,
-            selector: '.adsbygoogle, [id^="google_ads"], iframe[src*="doubleclick"], iframe[src*="googlesyndication"], .advertisement, .ad-container',
-          ),
-        ),
-      ],
+      supportZoom: false,
+      loadsImagesAutomatically: true,
+      cacheEnabled: false,
     ),
   );
 }
+
+
+
 
 
   Widget _homePage() {
