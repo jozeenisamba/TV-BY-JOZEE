@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:video_player/video_player.dart';
 
 import 'playlist_service.dart';
@@ -156,17 +156,7 @@ void dispose() {
     });
   }
 
-  Future<void> _openMoviesWebsite() async {
-    final opened = await launchUrl(
-      moviesWebsite,
-      mode: LaunchMode.inAppWebView,
-    );
-    if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Imeshindikana kufungua Cinegram.')),
-      );
-    }
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -349,46 +339,45 @@ void dispose() {
     }
   }
 
-  Widget _moviesPage() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Card(
-            color: panel,
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.movie, color: accent, size: 56),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'MOVIES',
-                    style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Fungua Cinegram kutazama filamu. Uchezaji na huduma '
-                    'zinapatikana kupitia tovuti yenyewe.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton.icon(
-                    onPressed: _openMoviesWebsite,
-                    icon: const Icon(Icons.open_in_new),
-                    label: const Text('Tazama Cinegram ndani ya app'),
-                  ),
-                ],
-              ),
-            ),
+
+Widget _moviesPage() {
+  return InAppWebView(
+    initialUrlRequest: URLRequest(
+      url: WebUri('https://cinegram.tv/tv-shows'),
+    ),
+    initialSettings: InAppWebViewSettings(
+      javaScriptEnabled: true,
+      domStorageEnabled: true,
+      mediaPlaybackRequiresUserGesture: false,
+      allowsInlineMediaPlayback: true,
+      supportZoom: true,
+      contentBlockers: [
+        // Zuia baadhi ya mitandao inayotumika kusambaza matangazo.
+        ContentBlocker(
+          trigger: ContentBlockerTrigger(
+            urlFilter: r'.*(doubleclick\.net|googlesyndication\.com|googleadservices\.com|popads\.net|popcash\.net).*',
+          ),
+          action: ContentBlockerAction(
+            type: ContentBlockerActionType.BLOCK,
           ),
         ),
-      ),
-    );
-  }
+
+        // Ficha baadhi ya maeneo ya matangazo kwenye ukurasa.
+        ContentBlocker(
+          trigger: ContentBlockerTrigger(
+            urlFilter: r'.*',
+            ifDomain: ['cinegram.tv', '*.cinegram.tv'],
+          ),
+          action: ContentBlockerAction(
+            type: ContentBlockerActionType.CSS_DISPLAY_NONE,
+            selector: '.adsbygoogle, [id^="google_ads"], iframe[src*="doubleclick"], iframe[src*="googlesyndication"], .advertisement, .ad-container',
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 
   Widget _homePage() {
     final list = filteredChannels;
